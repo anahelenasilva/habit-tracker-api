@@ -1,0 +1,108 @@
+# Authentication Functions
+signUp:
+  handler: src/main/functions/auth/signUp.handler
+  events:
+    - httpApi:
+        path: /auth/sign-up
+        method: post
+
+signIn:
+  handler: src/main/functions/auth/signIn.handler
+  events:
+    - httpApi:
+        path: /auth/sign-in
+        method: post
+
+refreshToken:
+  handler: src/main/functions/auth/refreshToken.handler
+  events:
+    - httpApi:
+        path: /auth/refresh-token
+        method: post
+
+forgotPassword:
+  handler: src/main/functions/auth/forgotPassword.handler
+  events:
+    - httpApi:
+        path: /auth/forgot-password
+        method: post
+
+confirmForgotPassword:
+  handler: src/main/functions/auth/confirmForgotPassword.handler
+  events:
+    - httpApi:
+        path: /auth/confirm-forgot-password
+        method: post
+
+# Habits Functions
+createHabit:
+  handler: src/main/functions/habits/createHabit.handler
+  events:
+    - httpApi:
+        path: /habits
+        method: post
+
+getHabits:
+  handler: src/main/functions/habits/getHabits.handler
+  events:
+    - httpApi:
+        path: /habits
+        method: get
+
+getHabit:
+  handler: src/main/functions/habits/getHabit.handler
+  events:
+    - httpApi:
+        path: /habits/{id}
+        method: get
+
+updateHabit:
+  handler: src/main/functions/habits/updateHabit.handler
+  events:
+    - httpApi:
+        path: /habits/{id}
+        method: put
+
+deleteHabit:
+  handler: src/main/functions/habits/deleteHabit.handler
+  events:
+    - httpApi:
+        path: /habits/{id}
+        method: delete
+
+# Habit Tracking Functions
+completeHabit:
+  handler: src/main/functions/habits/completeHabit.handler
+  events:
+    - httpApi:
+        path: /habits/{habitId}/complete
+        method: post
+
+failHabit:
+  handler: src/main/functions/habits/failHabit.handler
+  events:
+    - httpApi:
+        path: /habits/{habitId}/failed
+        method: post
+
+getHabitLogs:
+  handler: src/main/functions/habits/getHabitLogs.handler
+  events:
+    - httpApi:
+        path: /habits/{habitId}/logs
+        method: get
+
+# Statistics Functions
+getHabitStats:
+  handler: src/main/functions/stats/getHabitStats.handler
+  events:
+    - httpApi:
+        path: /habits/{habitId}/stats
+        method: get
+
+getUserStats:
+  handler: src/main/functions/stats/getUserStats.handler
+  events:
+    - httpApi:
+        path: /users/{userId}/stats
+        method: get
