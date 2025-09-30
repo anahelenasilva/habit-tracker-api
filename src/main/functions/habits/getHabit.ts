@@ -1,3 +1,5 @@
+import 'reflect-metadata';
+
 import { GetHabitController } from '@application/controllers/habits/GetHabitController';
 import { lambdaHttpAdapter } from '@main/adapter/lambdaHttpAdapter';
 
