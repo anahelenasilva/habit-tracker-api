@@ -1,39 +1,3 @@
-# Authentication Functions
-signUp:
-  handler: src/main/functions/auth/signUp.handler
-  events:
-    - httpApi:
-        path: /auth/sign-up
-        method: post
-
-signIn:
-  handler: src/main/functions/auth/signIn.handler
-  events:
-    - httpApi:
-        path: /auth/sign-in
-        method: post
-
-refreshToken:
-  handler: src/main/functions/auth/refreshToken.handler
-  events:
-    - httpApi:
-        path: /auth/refresh-token
-        method: post
-
-forgotPassword:
-  handler: src/main/functions/auth/forgotPassword.handler
-  events:
-    - httpApi:
-        path: /auth/forgot-password
-        method: post
-
-confirmForgotPassword:
-  handler: src/main/functions/auth/confirmForgotPassword.handler
-  events:
-    - httpApi:
-        path: /auth/confirm-forgot-password
-        method: post
-
 # Habits Functions
 createHabit:
   handler: src/main/functions/habits/createHabit.handler

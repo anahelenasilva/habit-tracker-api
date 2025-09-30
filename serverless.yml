@@ -1,167 +1,42 @@
-service: habitify-clone-api
+org: anahelena
+service: habit-tracker-api
 
 provider:
   name: aws
-  runtime: nodejs22.x
   region: us-east-1
+  runtime: nodejs22.x
+  memorySize: 128
   stage: ${opt:stage, 'dev'}
-  timeout: 30
-  memorySize: 512
-  environment:
-    STAGE: ${self:provider.stage}
-    REGION: ${self:provider.region}
-    MAIN_TABLE: ${self:service}-${self:provider.stage}-main-table
-    COGNITO_CLIENT_ID: !Ref CognitoUserPoolClient
-    COGNITO_CLIENT_SECRET: ""
-    COGNITO_POOL_ID: !Ref CognitoUserPool
+  environment: ${file(./sls/config/env.yml)}
   iam:
-    role:
-      statements:
-        - Effect: Allow
-          Action:
-            - dynamodb:GetItem
-            - dynamodb:PutItem
-            - dynamodb:UpdateItem
-            - dynamodb:DeleteItem
-            - dynamodb:Query
-            - dynamodb:Scan
-          Resource:
-            - !GetAtt MainTable.Arn
-            - !Sub "${MainTable.Arn}/index/*"
-        - Effect: Allow
-          Action:
-            - cognito-idp:AdminCreateUser
-            - cognito-idp:AdminDeleteUser
-            - cognito-idp:AdminGetUser
-            - cognito-idp:AdminInitiateAuth
-            - cognito-idp:AdminRespondToAuthChallenge
-            - cognito-idp:AdminSetUserPassword
-            - cognito-idp:AdminUpdateUserAttributes
-            - cognito-idp:CreateUserPool
-            - cognito-idp:CreateUserPoolClient
-            - cognito-idp:ConfirmForgotPassword
-            - cognito-idp:ForgotPassword
-            - cognito-idp:InitiateAuth
-            - cognito-idp:RespondToAuthChallenge
-            - cognito-idp:SignUp
-            - cognito-idp:ConfirmSignUp
-          Resource: !GetAtt CognitoUserPool.Arn
+    role: ${file(./sls/config/role.yml)}
+  httpApi:
+    disableDefaultEndpoint: ${env:DISABLE_DEFAULT_API_GATEWAY_ENDPOINT, false}
+    authorizers:
+      CognitoAuthorizer:
+        type: jwt
+        identitySource: $request.header.Authorization
+        issuerUrl: !GetAtt UserPool.ProviderURL
+        audience:
+          - !Ref UserPoolClient
 
-plugins:
-  - serverless-esbuild
-  - serverless-offline
+package:
+  individually: true
 
 custom:
-  esbuild:
-    bundle: true
-    minify: false
-    target: node22
-    platform: node
-    concurrency: 10
-    external:
-      - "@aws-sdk/client-cognito-identity-provider"
-      - "@aws-sdk/client-dynamodb"
-      - "@aws-sdk/lib-dynamodb"
+  cognito:
+    PoolName: ${self:service}-${self:provider.stage}-UserPool
 
-# Import function definitions
-functions: ${file(./sls/functions/index.yml)}
+build:
+  esbuild:
+    configFile: ./esbuild.config.mjs
+
+# functions:
+#   - ${file(./sls/functions/auth.yml)}
+#   - ${file(./sls/functions/habits.yml)}
+#   - ${file(./sls/functions/accounts.yml)}
 
 resources:
-  Resources:
-    # Cognito User Pool
-    CognitoUserPool:
-      Type: AWS::Cognito::UserPool
-      Properties:
-        UserPoolName: ${self:service}-${self:provider.stage}-user-pool
-        UsernameAttributes:
-          - email
-        AutoVerifiedAttributes:
-          - email
-        Policies:
-          PasswordPolicy:
-            MinimumLength: 8
-            RequireUppercase: false
-            RequireLowercase: false
-            RequireNumbers: false
-            RequireSymbols: false
-        EmailConfiguration:
-          EmailSendingAccount: COGNITO_DEFAULT
-        UserAttributeUpdateSettings:
-          AttributesRequireVerificationBeforeUpdate:
-            - email
-
-    # Cognito User Pool Client
-    CognitoUserPoolClient:
-      Type: AWS::Cognito::UserPoolClient
-      Properties:
-        ClientName: ${self:service}-${self:provider.stage}-client
-        UserPoolId: !Ref CognitoUserPool
-        GenerateSecret: false
-        ExplicitAuthFlows:
-          - ADMIN_NO_SRP_AUTH
-          - USER_PASSWORD_AUTH
-        AccessTokenValidity: 12
-        AccessTokenValidityUnits: hours
-        RefreshTokenValidity: 30
-        RefreshTokenValidityUnits: days
-
-    # DynamoDB Main Table
-    MainTable:
-      Type: AWS::DynamoDB::Table
-      Properties:
-        TableName: ${self:provider.environment.MAIN_TABLE}
-        BillingMode: PAY_PER_REQUEST
-        AttributeDefinitions:
-          - AttributeName: id
-            AttributeType: S
-          - AttributeName: userId
-            AttributeType: S
-          - AttributeName: accountId
-            AttributeType: S
-          - AttributeName: email
-            AttributeType: S
-          - AttributeName: habitId
-            AttributeType: S
-          - AttributeName: date
-            AttributeType: S
-        KeySchema:
-          - AttributeName: id
-            KeyType: HASH
-        GlobalSecondaryIndexes:
-          - IndexName: UserIdIndex
-            KeySchema:
-              - AttributeName: userId
-                KeyType: HASH
-            Projection:
-              ProjectionType: ALL
-          - IndexName: AccountIdIndex
-            KeySchema:
-              - AttributeName: accountId
-                KeyType: HASH
-            Projection:
-              ProjectionType: ALL
-          - IndexName: EmailIndex
-            KeySchema:
-              - AttributeName: email
-                KeyType: HASH
-            Projection:
-              ProjectionType: ALL
-          - IndexName: HabitIdDateIndex
-            KeySchema:
-              - AttributeName: habitId
-                KeyType: HASH
-              - AttributeName: date
-                KeyType: RANGE
-            Projection:
-              ProjectionType: ALL
-
-  Outputs:
-    UserPoolId:
-      Description: ID of the Cognito User Pool
-      Value: !Ref CognitoUserPool
-    UserPoolClientId:
-      Description: ID of the Cognito User Pool Client
-      Value: !Ref CognitoUserPoolClient
-    MainTableName:
-      Description: Name of the Main DynamoDB table
-      Value: !Ref MainTable
+  - ${file(./sls/resources/UserPool.yml)}
+  - ${file(./sls/resources/MainTable.yml)}
+  # - ${file(./sls/resources/APIGWCustomDomain.yml)}
