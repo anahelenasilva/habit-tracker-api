@@ -25,7 +25,7 @@ export class AccountRepository {
 
     await dynamoClient.send(new PutCommand({
       TableName: this.config.database.dynamodb.mainTable,
-      Item: item,
+      Item: item.toItem(),
     }));
   }
 

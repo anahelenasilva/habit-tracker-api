@@ -23,13 +23,13 @@ export class SignUpUseCase {
       throw new EmailAlreadyInUse();
     }
 
-    const account = new Account({ email: accountData.email, });
+    const account = new Account({ email: accountData.email });
 
     // Create user in Cognito
     const { externalId } = await this.authGateway.signUp({
       email: accountData.email,
       password: accountData.password,
-      internalId: account.id
+      internalId: account.id,
     });
 
     account.externalId = externalId;
