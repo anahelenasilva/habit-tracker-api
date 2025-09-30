@@ -1,4 +1,4 @@
-import { GetCommand, PutCommand, QueryCommand } from '@aws-sdk/lib-dynamodb';
+import { PutCommand, PutCommandInput, QueryCommand } from '@aws-sdk/lib-dynamodb';
 
 import { Account } from '@application/entities/Account';
 import { dynamoClient } from '@infra/clients/dynamoClient';
@@ -9,11 +9,19 @@ import { AccountItem } from '../items/AccountItem';
 
 @Injectable()
 export class AccountRepository {
-
   constructor(private readonly config: AppConfig) { }
 
+  getPutCommand(account: Account): PutCommandInput {
+    const accountItem = AccountItem.fromEntity(account);
+
+    return {
+      TableName: this.config.database.dynamodb.mainTable,
+      Item: accountItem.toItem(),
+    };
+  }
+
   async save(account: Account): Promise<void> {
-    const item = new AccountItem(account);
+    const item = AccountItem.fromEntity(account);
 
     await dynamoClient.send(new PutCommand({
       TableName: this.config.database.dynamodb.mainTable,
@@ -21,51 +29,29 @@ export class AccountRepository {
     }));
   }
 
-  async findById(id: string): Promise<Account | null> {
-    const result = await dynamoClient.send(new GetCommand({
-      TableName: this.config.database.dynamodb.mainTable,
-      Key: { id },
-    }));
-
-    if (!result.Item) {
-      return null;
-    }
-
-    return AccountItem.fromDynamoItem(result.Item).toDomain();
-  }
-
   async findByEmail(email: string): Promise<Account | null> {
-    const result = await dynamoClient.send(new QueryCommand({
+    const command = new QueryCommand({
       TableName: this.config.database.dynamodb.mainTable,
-      IndexName: 'EmailIndex',
-      KeyConditionExpression: 'email = :email',
-      ExpressionAttributeValues: {
-        ':email': email,
+      IndexName: 'GSI1',
+      Limit: 1,
+      KeyConditionExpression: '#GSI1PK = :GSI1PK AND #GSI1SK = :GSI1SK',
+      ExpressionAttributeNames: {
+        '#GSI1PK': 'GSI1PK',
+        '#GSI1SK': 'GSI1SK',
       },
-    }));
+      ExpressionAttributeValues: {
+        ':GSI1PK': AccountItem.getGSI1PK(email),
+        ':GSI1SK': AccountItem.getGSI1SK(email),
+      },
+    });
 
-    const items = result.Items || [];
-    if (items.length === 0) {
+    const { Items = [] } = await dynamoClient.send(command);
+    const account = Items[0] as AccountItem.ItemType | undefined;
+
+    if (!account) {
       return null;
     }
 
-    return AccountItem.fromDynamoItem(items[0]).toDomain();
-  }
-
-  async findByExternalId(externalId: string): Promise<Account | null> {
-    const result = await dynamoClient.send(new QueryCommand({
-      TableName: this.config.database.dynamodb.mainTable,
-      FilterExpression: 'externalId = :externalId',
-      ExpressionAttributeValues: {
-        ':externalId': externalId,
-      },
-    }));
-
-    const items = result.Items || [];
-    if (items.length === 0) {
-      return null;
-    }
-
-    return AccountItem.fromDynamoItem(items[0]).toDomain();
+    return AccountItem.toEntity(account);
   }
 }

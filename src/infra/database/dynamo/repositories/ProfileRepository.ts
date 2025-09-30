@@ -1,4 +1,4 @@
-import { GetCommand, PutCommand, QueryCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb';
+import { GetCommand, PutCommandInput, UpdateCommand } from '@aws-sdk/lib-dynamodb';
 
 import { Profile } from '@application/entities/Profile';
 import { dynamoClient } from '@infra/clients/dynamoClient';
@@ -9,64 +9,62 @@ import { ProfileItem } from '../items/ProfileItem';
 
 @Injectable()
 export class ProfileRepository {
-
   constructor(private readonly config: AppConfig) { }
 
-  async save(profile: Profile): Promise<void> {
-    const item = new ProfileItem(profile);
+  getPutCommand(profile: Profile): PutCommandInput {
+    const profileItem = ProfileItem.fromEntity(profile);
 
-    await dynamoClient.send(new PutCommand({
+    return {
       TableName: this.config.database.dynamodb.mainTable,
-      Item: item,
-    }));
+      Item: profileItem.toItem(),
+    };
   }
 
-  async findById(id: string): Promise<Profile | null> {
-    const result = await dynamoClient.send(new GetCommand({
+  async save(profile: Profile) {
+    const profileItem = ProfileItem.fromEntity(profile).toItem();
+
+    const command = new UpdateCommand({
       TableName: this.config.database.dynamodb.mainTable,
-      Key: { id },
-    }));
-
-    if (!result.Item) {
-      return null;
-    }
-
-    return ProfileItem.fromDynamoItem(result.Item).toDomain();
-  }
-
-  async findByAccountId(accountId: string): Promise<Profile | null> {
-    const result = await dynamoClient.send(new QueryCommand({
-      TableName: this.config.database.dynamodb.mainTable,
-      IndexName: 'AccountIdIndex',
-      KeyConditionExpression: 'accountId = :accountId',
-      ExpressionAttributeValues: {
-        ':accountId': accountId,
+      Key: {
+        PK: profileItem.PK,
+        SK: profileItem.SK,
       },
-    }));
-
-    const items = result.Items || [];
-    if (items.length === 0) {
-      return null;
-    }
-
-    return ProfileItem.fromDynamoItem(items[0]).toDomain();
-  }
-
-  async update(profile: Profile): Promise<void> {
-    const item = new ProfileItem(profile);
-
-    await dynamoClient.send(new UpdateCommand({
-      TableName: this.config.database.dynamodb.mainTable,
-      Key: { id: profile.id },
-      UpdateExpression: 'SET #name = :name, birthDate = :birthDate, updatedAt = :updatedAt',
+      UpdateExpression: 'SET #name = :name, #birthDate = :birthDate',
       ExpressionAttributeNames: {
         '#name': 'name',
+        '#birthDate': 'birthDate',
       },
       ExpressionAttributeValues: {
-        ':name': item.name,
-        ':birthDate': item.birthDate,
-        ':updatedAt': item.updatedAt,
+        ':name': profileItem.name,
+        ':birthDate': profileItem.birthDate,
       },
-    }));
+      ReturnValues: 'NONE',
+    });
+
+    await dynamoClient.send(command);
+  }
+
+  async findByAccountId({ accountId }: ProfileRepository.FindByAccountIdParams): Promise<Profile | null> {
+    const command = new GetCommand({
+      TableName: this.config.database.dynamodb.mainTable,
+      Key: {
+        PK: ProfileItem.getPK(accountId),
+        SK: ProfileItem.getSK(accountId),
+      },
+    });
+
+    const { Item: profileItem } = await dynamoClient.send(command);
+
+    if (!profileItem) {
+      return null;
+    }
+
+    return ProfileItem.toEntity(profileItem as ProfileItem.ItemType);
+  }
+}
+
+export namespace ProfileRepository {
+  export type FindByAccountIdParams = {
+    accountId: string;
   }
 }
