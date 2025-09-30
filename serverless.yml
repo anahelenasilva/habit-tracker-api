@@ -31,10 +31,10 @@ build:
   esbuild:
     configFile: ./esbuild.config.mjs
 
-# functions:
-#   - ${file(./sls/functions/auth.yml)}
-#   - ${file(./sls/functions/habits.yml)}
-#   - ${file(./sls/functions/accounts.yml)}
+functions:
+  - ${file(./sls/functions/auth.yml)}
+  # - ${file(./sls/functions/habits.yml)}
+  # - ${file(./sls/functions/accounts.yml)}
 
 resources:
   - ${file(./sls/resources/UserPool.yml)}
